@@ -1873,14 +1873,21 @@ const fd = new FormData();
                         }
                     }
                 } catch (_) {}
-                    // Detecção de rosto (11/10/2026, Lucas): se o produto tem foto do óculos no rosto,
-                    // manda SÓ as fotos no rosto (até 4) — sem packshot de fundo branco. O gerador usa
-                    // a modelo pra copiar proporção e caimento. Sem rosto detectado → fotos default.
+                    // Detecção de rosto (12/10/2026, Lucas): foto do óculos no rosto como PRINCIPAL +
+                    // os packshots junto (formato/cor), depois as demais fotos no rosto. O gerador
+                    // confere por imagem que todas sao da MESMA cor da principal. Sem rosto → fotos default.
                     try {
                         if (faceDetectPromise) { await Promise.race([faceDetectPromise, new Promise(function (r) { setTimeout(r, 4000); })]); }
                         if (_faceUrls && _faceUrls.length) {
-                            allProdImgs = _faceUrls.slice(0, 4);
-                            console.log('[PL Lebloss] Só fotos no rosto:', allProdImgs.length);
+                            var _key = function (u) { return String(u || '').split('?')[0]; };
+                            var _faceKeys = {};
+                            _faceUrls.forEach(function (u) { _faceKeys[_key(u)] = 1; });
+                            var _mix = [];
+                            var _add = function (u) { if (u && !_mix.some(function (x) { return _key(x) === _key(u); })) _mix.push(u); };
+                            _add(_faceUrls[0]);
+                            allProdImgs.filter(function (u) { return !_faceKeys[_key(u)]; }).forEach(_add);
+                            _faceUrls.slice(1).forEach(_add);
+                            allProdImgs = _mix;
                         }
                     } catch (e) {}
                 allProdImgs = allProdImgs.slice(0, 4);
